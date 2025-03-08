@@ -154,7 +154,6 @@ def collect_response_from_gpt(db_path_list, question_list, intelligence_url, kno
     response_list = []
     for i, question in tqdm(enumerate(question_list)):
         print('--------------------- processing {}th question ---------------------'.format(i))
-        print('the question is: {}'.format(question))
         
         if knowledge_list:
             system_prompt, user_prompt, schema_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question, knowledge=knowledge_list[i])

@@ -29,7 +29,7 @@ class BirdDevBench(BaseBench):
         """
         Return the directory inside the container where the benchmark results will be stored.
         """
-        return "/app/results"
+        return "/app/result"
     
     def get_log_files_dir_in_container(self) -> str:
         """
