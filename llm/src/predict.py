@@ -139,11 +139,11 @@ def generate_combined_prompts_one(db_path, question, knowledge=None):
     system_prompt = schema_prompt + '\n\n' + comment_prompt 
     user_prompt = cot_wizard() + '\nSELECT '
 
-    return system_prompt, user_prompt
+    return system_prompt, user_prompt, schema_prompt
 
-def connect_gpt(intelligence_url, system_prompt, user_prompt):
+def connect_gpt(intelligence_url, system_prompt, user_prompt, schema_prompt, question, knowledge):
     client = BirdClient(intelligence_url=intelligence_url)
-    response = client.get_response({"system_prompt": system_prompt, "user_prompt": user_prompt})
+    response = client.get_response({"system_prompt": system_prompt, "user_prompt": user_prompt, "schema_prompt": schema_prompt, "question": question, "knowledge": knowledge})
     return response["sql"]
 
 def collect_response_from_gpt(db_path_list, question_list, intelligence_url, knowledge_list=None):
@@ -158,11 +158,11 @@ def collect_response_from_gpt(db_path_list, question_list, intelligence_url, kno
         print('the question is: {}'.format(question))
         
         if knowledge_list:
-            system_prompt, user_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question, knowledge=knowledge_list[i])
+            system_prompt, user_prompt, schema_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question, knowledge=knowledge_list[i])
         else:
-            system_prompt, user_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question)
+            system_prompt, user_prompt, schema_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question)
         
-        plain_result = connect_gpt(intelligence_url=intelligence_url, system_prompt=system_prompt, user_prompt=user_prompt)
+        plain_result = connect_gpt(intelligence_url=intelligence_url, system_prompt=system_prompt, user_prompt=user_prompt, schema_prompt=schema_prompt, question=question, knowledge=knowledge_list[i] if knowledge_list else None)
         
         if type(plain_result) == str:
             sql = plain_result
@@ -226,7 +226,6 @@ if __name__ == '__main__':
     args = args_parser.parse_args()
     
     eval_data = json.load(open(args.eval_path, 'r'))
-    eval_data = eval_data[:1]
     
     question_list, db_path_list, knowledge_list = decouple_question_schema(datasets=eval_data, db_root_path=args.db_root_path)
     assert len(question_list) == len(db_path_list) == len(knowledge_list)
