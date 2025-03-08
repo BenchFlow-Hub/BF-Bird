@@ -4,7 +4,6 @@ import json
 import os
 import sqlite3
 from typing import Dict, Any
-from openai import OpenAI
 from tqdm import tqdm
 from benchflow import BenchClient
 

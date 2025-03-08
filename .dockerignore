@@ -1,3 +1,4 @@
 ./llm/exp_result
 dockerfile
 .venv
+result

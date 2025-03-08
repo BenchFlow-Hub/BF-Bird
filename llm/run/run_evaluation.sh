@@ -8,8 +8,8 @@ meta_time_out=30.0
 mode_predict='gpt'
 db_root_path='./data/dev_databases/'
 diff_json_path='./data/dev.json'
-predicted_sql_path_kg='./exp_result/turbo_output_kg/'
-predicted_sql_path='./exp_result/turbo_output/'
+predicted_sql_path_kg='../prediction_result/turbo_output_kg/'
+predicted_sql_path='../prediction_result/turbo_output/'
 ground_truth_path='./data/'
 
 if [ ${use_knowledge} == 'True' ]; then
