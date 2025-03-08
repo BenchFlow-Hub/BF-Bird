@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -197,7 +196,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "backoff", specifier = ">=2.2.1" },
-    { name = "benchflow", specifier = ">=0.1.12" },
+    { name = "benchflow", specifier = "==0.1.12" },
     { name = "func-timeout", specifier = ">=4.3.5" },
     { name = "openai", specifier = ">=1.65.4" },
     { name = "pandas", specifier = ">=2.2.3" },
