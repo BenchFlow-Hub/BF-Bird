@@ -10,7 +10,7 @@ import sqlite3
 from typing import Dict, List, Tuple
 
 import backoff
-import openai
+from openai import OpenAI
 import pandas as pd
 import sqlparse
 from tqdm import tqdm
@@ -140,38 +140,29 @@ def generate_combined_prompts_one(db_path, question, knowledge=None):
     comment_prompt = generate_comment_prompt(question, knowledge)
 
     combined_prompts = schema_prompt + '\n\n' + comment_prompt + cot_wizard() + '\nSELECT '
-    # combined_prompts = few_shot() + '\n\n' + schema_prompt + '\n\n' + comment_prompt
-
-    # print(combined_prompts)
 
     return combined_prompts
 
-def quota_giveup(e):
-    return isinstance(e, openai.error.RateLimitError) and "quota" in str(e)
+def connect_gpt(api_key, prompt):
+    client = OpenAI(
+            api_key=api_key,  # This is the default and can be omitted
+        )
 
-@backoff.on_exception(
-    backoff.constant,
-    openai.error.OpenAIError,
-    giveup=quota_giveup,
-    raise_on_giveup=True,
-    interval=20
-)
-def connect_gpt(engine, prompt, max_tokens, temperature, stop):
-    # print(prompt)
-    try:
-        result = openai.Completion.create(engine=engine, prompt=prompt, max_tokens=max_tokens, temperature=temperature, stop=stop)
-    except Exception as e:
-        result = 'error:{}'.format(e)
-    return result
-def collect_response_from_gpt(db_path_list, question_list, api_key, engine, knowledge_list=None):
+    response = client.chat.completions.create(
+        messages=prompt,
+        model="gpt-4o",
+        temperature=0.9,
+    )
+    content = response.choices[0].message.content
+    return content
+
+def collect_response_from_gpt(db_path_list, question_list, api_key, knowledge_list=None):
     '''
     :param db_path: str
     :param question_list: []
     :return: dict of responses collected from openai
     '''
-    responses_dict = {}
     response_list = []
-    openai.api_key = api_key
     for i, question in tqdm(enumerate(question_list)):
         print('--------------------- processing {}th question ---------------------'.format(i))
         print('the question is: {}'.format(question))
@@ -181,10 +172,7 @@ def collect_response_from_gpt(db_path_list, question_list, api_key, engine, know
         else:
             cur_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question)
         
-        plain_result = connect_gpt(engine=engine, prompt=cur_prompt, max_tokens=256, temperature=0, stop=['--', '\n\n', ';', '#'])
-        # pdb.set_trace()
-        # plain_result = connect_gpt(engine=engine, prompt=cur_prompt, max_tokens=256, temperature=0, stop=['</s>'])
-        # determine wheter the sql is wrong
+        plain_result = connect_gpt(api_key=api_key, prompt=cur_prompt, stop=['--', '\n\n', ';', '#'])
         
         if type(plain_result) == str:
             sql = plain_result
@@ -243,31 +231,29 @@ if __name__ == '__main__':
     args_parser.add_argument('--test_path', type=str, default='')
     args_parser.add_argument('--use_knowledge', type=str, default='False')
     args_parser.add_argument('--db_root_path', type=str, default='')
-    # args_parser.add_argument('--db_name', type=str, required=True)
-    args_parser.add_argument('--api_key', type=str, required=True)
-    args_parser.add_argument('--engine', type=str, required=True, default='code-davinci-002')
+    args_parser.add_argument('--api_key', type=str, default=os.getenv('OPENAI_API_KEY'))
     args_parser.add_argument('--data_output_path', type=str)
     args_parser.add_argument('--chain_of_thought', type=str)
     args = args_parser.parse_args()
     
     eval_data = json.load(open(args.eval_path, 'r'))
-    # '''for debug'''
-    # eval_data = eval_data[:3]
-    # '''for debug'''
+    '''for debug'''
+    eval_data = eval_data[:3]
+    '''for debug'''
     
     question_list, db_path_list, knowledge_list = decouple_question_schema(datasets=eval_data, db_root_path=args.db_root_path)
     assert len(question_list) == len(db_path_list) == len(knowledge_list)
     
     if args.use_knowledge == 'True':
-        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, engine=args.engine, knowledge_list=knowledge_list)
+        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=knowledge_list)
     else:
-        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, engine=args.engine, knowledge_list=None)
+        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=None)
     
     if args.chain_of_thought == 'True':
         output_name = args.data_output_path + 'predict_' + args.mode + '_cot.json'
     else:
         output_name = args.data_output_path + 'predict_' + args.mode + '.json'
-    # pdb.set_trace()
+        
     generate_sql_file(sql_lst=responses, output_path=output_name)
 
     print('successfully collect results from {} for {} evaluation; Use knowledge: {}; Use COT: {}'.format(args.engine, args.mode, args.use_knowledge, args.chain_of_thought))

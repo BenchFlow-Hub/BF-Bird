@@ -175,4 +175,3 @@ Please cite the repo if you think our work is helpful to you.
   primaryClass={cs.CL}
 }
 ```
-# Bird
