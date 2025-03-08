@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 import argparse
-import fnmatch
 import json
 import os
-import pdb
-import pickle
-import re
 import sqlite3
-from typing import Dict, List, Tuple
-
-import backoff
+from typing import Dict, Any
 from openai import OpenAI
-import pandas as pd
 from tqdm import tqdm
+from benchflow import BenchClient
 
+class BirdClient(BenchClient):
+    def __init__(self, intelligence_url: str,):
+        super().__init__(intelligence_url)
+
+    def prepare_input(self, raw_step_inputs: Dict[str, Any]) -> Dict[str, Any]:
+        return {"system_prompt": raw_step_inputs["system_prompt"], "user_prompt": raw_step_inputs["user_prompt"]}
+
+    def parse_response(self, raw_response: str) -> Dict[str, Any]:
+        return {"sql": raw_response}
 
 def new_directory(path):  
     if not os.path.exists(path):  
@@ -138,23 +141,12 @@ def generate_combined_prompts_one(db_path, question, knowledge=None):
 
     return system_prompt, user_prompt
 
-def connect_gpt(api_key, system_prompt, user_prompt, model='gpt-3.5-turbo'):
-    print(system_prompt)
-    print(user_prompt)
-    client = OpenAI(
-            api_key=api_key,  # This is the default and can be omitted
-        )
-    
-    messsage = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
-    response = client.chat.completions.create(
-        messages=messsage,
-        model=model,
-        temperature=0.9,
-    )
-    content = response.choices[0].message.content
-    return content
+def connect_gpt(intelligence_url, system_prompt, user_prompt):
+    client = BirdClient(intelligence_url=intelligence_url)
+    response = client.get_response({"system_prompt": system_prompt, "user_prompt": user_prompt})
+    return response["sql"]
 
-def collect_response_from_gpt(db_path_list, question_list, api_key, knowledge_list=None, model='gpt-3.5-turbo'):
+def collect_response_from_gpt(db_path_list, question_list, intelligence_url, knowledge_list=None):
     '''
     :param db_path: str
     :param question_list: []
@@ -170,7 +162,7 @@ def collect_response_from_gpt(db_path_list, question_list, api_key, knowledge_li
         else:
             system_prompt, user_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question)
         
-        plain_result = connect_gpt(api_key=api_key, system_prompt=system_prompt, user_prompt=user_prompt, model=model)
+        plain_result = connect_gpt(intelligence_url=intelligence_url, system_prompt=system_prompt, user_prompt=user_prompt)
         
         if type(plain_result) == str:
             sql = plain_result
@@ -226,13 +218,11 @@ if __name__ == '__main__':
     args_parser = argparse.ArgumentParser()
     args_parser.add_argument('--eval_path', type=str, default='')
     args_parser.add_argument('--mode', type=str, default='dev')
-    args_parser.add_argument('--model', type=str, default='gpt-3.5-turbo')
-    args_parser.add_argument('--test_path', type=str, default='')
     args_parser.add_argument('--use_knowledge', action='store_true')
     args_parser.add_argument('--db_root_path', type=str, default='')
-    args_parser.add_argument('--api_key', type=str, default=os.getenv('OPENAI_API_KEY'))
     args_parser.add_argument('--data_output_path', type=str)
     args_parser.add_argument('--chain_of_thought', action='store_true')
+    args_parser.add_argument('--intelligence_url', type=str, required=True)
     args = args_parser.parse_args()
     
     eval_data = json.load(open(args.eval_path, 'r'))
@@ -242,9 +232,9 @@ if __name__ == '__main__':
     assert len(question_list) == len(db_path_list) == len(knowledge_list)
     
     if args.use_knowledge:
-        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=knowledge_list, model=args.model)
+        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, intelligence_url=args.intelligence_url, knowledge_list=knowledge_list)
     else:
-        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=None, model=args.model)
+        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, intelligence_url=args.intelligence_url, knowledge_list=None)
     
     if args.chain_of_thought:
         output_name = args.data_output_path + 'predict_' + args.mode + '_cot.json'
