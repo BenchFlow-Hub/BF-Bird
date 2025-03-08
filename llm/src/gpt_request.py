@@ -236,9 +236,6 @@ if __name__ == '__main__':
     args = args_parser.parse_args()
     
     eval_data = json.load(open(args.eval_path, 'r'))
-    '''for debug'''
-    eval_data = eval_data[:1]
-    '''for debug'''
     
     question_list, db_path_list, knowledge_list = decouple_question_schema(datasets=eval_data, db_root_path=args.db_root_path)
     assert len(question_list) == len(db_path_list) == len(knowledge_list)

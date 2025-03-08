@@ -1,13 +1,14 @@
-db_root_path='./data/dev_databases/'
-data_mode='dev'
-diff_json_path='./data/dev.json'
-predicted_sql_path_kg='./exp_result/turbo_output_kg/'
-predicted_sql_path='./exp_result/turbo_output/'
-ground_truth_path='./data/'
+#!/bin/bash
+
 num_cpus=16
 meta_time_out=30.0
 mode_gt='gt'
 mode_predict='gpt'
+db_root_path='./data/dev_databases/'
+diff_json_path='./data/dev.json'
+predicted_sql_path_kg='./exp_result/turbo_output_kg/'
+predicted_sql_path='./exp_result/turbo_output/'
+ground_truth_path='./data/'
 
 echo '''starting to compare with knowledge for ex'''
 python3 -u ./src/evaluation.py --db_root_path ${db_root_path} --predicted_sql_path ${predicted_sql_path_kg} --data_mode ${data_mode} \
