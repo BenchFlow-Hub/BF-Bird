@@ -228,24 +228,25 @@ if __name__ == '__main__':
     args_parser.add_argument('--mode', type=str, default='dev')
     args_parser.add_argument('--model', type=str, default='gpt-3.5-turbo')
     args_parser.add_argument('--test_path', type=str, default='')
-    args_parser.add_argument('--use_knowledge', type=str, default='False')
+    args_parser.add_argument('--use_knowledge', action='store_true')
     args_parser.add_argument('--db_root_path', type=str, default='')
     args_parser.add_argument('--api_key', type=str, default=os.getenv('OPENAI_API_KEY'))
     args_parser.add_argument('--data_output_path', type=str)
-    args_parser.add_argument('--chain_of_thought', type=str)
+    args_parser.add_argument('--chain_of_thought', action='store_true')
     args = args_parser.parse_args()
     
     eval_data = json.load(open(args.eval_path, 'r'))
+    eval_data = eval_data[:1]
     
     question_list, db_path_list, knowledge_list = decouple_question_schema(datasets=eval_data, db_root_path=args.db_root_path)
     assert len(question_list) == len(db_path_list) == len(knowledge_list)
     
-    if args.use_knowledge == 'True':
+    if args.use_knowledge:
         responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=knowledge_list, model=args.model)
     else:
         responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=None, model=args.model)
     
-    if args.chain_of_thought == 'True':
+    if args.chain_of_thought:
         output_name = args.data_output_path + 'predict_' + args.mode + '_cot.json'
     else:
         output_name = args.data_output_path + 'predict_' + args.mode + '.json'

@@ -73,11 +73,14 @@ def execute_model(predicted_sql,ground_truth, db_place, idx, iterate_num, meta_t
     return result
 
 
-def package_sqls(sql_path, db_root_path, mode='gpt', data_mode='dev'):
+def package_sqls(sql_path, db_root_path, mode='gpt', data_mode='dev', cot=False):
     clean_sqls = []
     db_path_list = []
     if mode == 'gpt':
-        sql_data = json.load(open(sql_path + 'predict_' + data_mode + '.json', 'r'))
+        if cot:
+            sql_data = json.load(open(sql_path + 'predict_' + data_mode + '_cot.json', 'r'))
+        else:
+            sql_data = json.load(open(sql_path + 'predict_' + data_mode + '.json', 'r'))
         for idx, sql_str in sql_data.items():
             if type(sql_str) == str:
                 sql, db_name = sql_str.split('\t----- bird -----\t')
@@ -149,23 +152,43 @@ def print_data(score_lists,count_lists):
 
     print('=========================================    VES   ========================================')
     print("{:20} {:<20.2f} {:<20.2f} {:<20.2f} {:<20.2f}".format('ves', *score_lists))
+    results = {
+        "accuracy": {
+            "simple": score_lists[0],
+            "moderate": score_lists[1],
+            "challenging": score_lists[2],
+            "total": score_lists[3]
+        },
+        "counts": {
+            "simple": count_lists[0],
+            "moderate": count_lists[1],
+            "challenging": count_lists[2],
+            "total": count_lists[3]
+        }
+    }
+    output_file = "../result/evaluation_result_ves.json"
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+    with open(output_file, "w") as f:
+        json.dump(results, f, indent=4)
 
 if __name__ == '__main__':
     args_parser = argparse.ArgumentParser()
     args_parser.add_argument('--predicted_sql_path', type=str, required=True, default='')
     args_parser.add_argument('--ground_truth_path', type=str, required=True, default='')
-    args_parser.add_argument('--data_mode', type=str, required=True, default='dev')
+    args_parser.add_argument('--data_mode', type=str, default='dev')
     args_parser.add_argument('--db_root_path', type=str, required=True, default='')
-    args_parser.add_argument('--num_cpus', type=int, default=1)
+    args_parser.add_argument('--num_cpus', type=int, default=4)
     args_parser.add_argument('--meta_time_out', type=float, default=30.0)
     args_parser.add_argument('--mode_gt', type=str, default='gt')
     args_parser.add_argument('--mode_predict', type=str, default='gpt')
     args_parser.add_argument('--diff_json_path',type=str,default='')
+    args_parser.add_argument('--cot', action='store_true')
     args = args_parser.parse_args()
     exec_result = []
     
     pred_queries, db_paths = package_sqls(args.predicted_sql_path, args.db_root_path, mode=args.mode_predict,
-                                          data_mode=args.data_mode)
+                                          data_mode=args.data_mode, cot=args.cot)
     # generate gt sqls:
     gt_queries, db_paths_gt = package_sqls(args.ground_truth_path, args.db_root_path, mode='gt',
                                            data_mode=args.data_mode)

@@ -14,13 +14,31 @@ data_output_path='./exp_result/turbo_output/'
 data_kg_output_path='./exp_result/turbo_output_kg/'
 
 if [ ${if_use_knowledge} == 'True' ]; then
-    python3 -u ./src/gpt_request.py --db_root_path ${db_root_path} \
-        --eval_path ${eval_path} --data_output_path ${data_kg_output_path} \
-        --use_knowledge ${if_use_knowledge} --chain_of_thought ${chain_of_thought} \
-        --model ${model}
+    echo "using knowledge"
+    if [ ${chain_of_thought} == 'True' ]; then
+        echo "using chain of thought"
+        python3 -u ./src/gpt_request.py --db_root_path ${db_root_path} \
+            --eval_path ${eval_path} --data_output_path ${data_kg_output_path} \
+            --use_knowledge ${if_use_knowledge} --chain_of_thought \
+            --model ${model}
+    else
+        echo "not using chain of thought"
+        python3 -u ./src/gpt_request.py --db_root_path ${db_root_path} \
+            --eval_path ${eval_path} --data_output_path ${data_kg_output_path} \
+            --use_knowledge ${if_use_knowledge} \
+            --model ${model}
+    fi
 else
-    python3 -u ./src/gpt_request.py --db_root_path ${db_root_path} \
-        --eval_path ${eval_path} --data_output_path ${data_output_path} \
-        --use_knowledge ${if_use_knowledge} --chain_of_thought ${chain_of_thought} \
-        --model ${model}
+    if [ ${chain_of_thought} == 'True' ]; then
+        echo "using chain of thought"
+        python3 -u ./src/gpt_request.py --db_root_path ${db_root_path} \
+            --eval_path ${eval_path} --data_output_path ${data_output_path} \
+            --chain_of_thought \
+            --model ${model}
+    else
+        echo "not using chain of thought"
+        python3 -u ./src/gpt_request.py --db_root_path ${db_root_path} \
+            --eval_path ${eval_path} --data_output_path ${data_output_path} \
+            --model ${model}
+    fi
 fi
