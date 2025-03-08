@@ -12,7 +12,11 @@ class BirdClient(BenchClient):
         super().__init__(intelligence_url)
 
     def prepare_input(self, raw_step_inputs: Dict[str, Any]) -> Dict[str, Any]:
-        return {"system_prompt": raw_step_inputs["system_prompt"], "user_prompt": raw_step_inputs["user_prompt"]}
+        return {"system_prompt": raw_step_inputs["system_prompt"], 
+                "user_prompt": raw_step_inputs["user_prompt"], 
+                "schema_prompt": raw_step_inputs["schema_prompt"], 
+                "question": raw_step_inputs["question"], 
+                "knowledge": raw_step_inputs["knowledge"]}
 
     def parse_response(self, raw_response: str) -> Dict[str, Any]:
         return {"sql": raw_response}
