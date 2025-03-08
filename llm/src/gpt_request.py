@@ -12,11 +12,7 @@ from typing import Dict, List, Tuple
 import backoff
 from openai import OpenAI
 import pandas as pd
-import sqlparse
 from tqdm import tqdm
-'''openai configure'''
-
-openai.debug=True
 
 
 def new_directory(path):  
@@ -139,24 +135,28 @@ def generate_combined_prompts_one(db_path, question, knowledge=None):
     schema_prompt = generate_schema_prompt(db_path, num_rows=None) # This is the entry to collect values
     comment_prompt = generate_comment_prompt(question, knowledge)
 
-    combined_prompts = schema_prompt + '\n\n' + comment_prompt + cot_wizard() + '\nSELECT '
+    system_prompt = schema_prompt + '\n\n' + comment_prompt 
+    user_prompt = cot_wizard() + '\nSELECT '
 
-    return combined_prompts
+    return system_prompt, user_prompt
 
-def connect_gpt(api_key, prompt):
+def connect_gpt(api_key, system_prompt, user_prompt, model='gpt-3.5-turbo'):
+    print(system_prompt)
+    print(user_prompt)
     client = OpenAI(
             api_key=api_key,  # This is the default and can be omitted
         )
-
+    
+    messsage = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
     response = client.chat.completions.create(
-        messages=prompt,
-        model="gpt-4o",
+        messages=messsage,
+        model=model,
         temperature=0.9,
     )
     content = response.choices[0].message.content
     return content
 
-def collect_response_from_gpt(db_path_list, question_list, api_key, knowledge_list=None):
+def collect_response_from_gpt(db_path_list, question_list, api_key, knowledge_list=None, model='gpt-3.5-turbo'):
     '''
     :param db_path: str
     :param question_list: []
@@ -168,11 +168,11 @@ def collect_response_from_gpt(db_path_list, question_list, api_key, knowledge_li
         print('the question is: {}'.format(question))
         
         if knowledge_list:
-            cur_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question, knowledge=knowledge_list[i])
+            system_prompt, user_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question, knowledge=knowledge_list[i])
         else:
-            cur_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question)
+            system_prompt, user_prompt = generate_combined_prompts_one(db_path=db_path_list[i], question=question)
         
-        plain_result = connect_gpt(api_key=api_key, prompt=cur_prompt, stop=['--', '\n\n', ';', '#'])
+        plain_result = connect_gpt(api_key=api_key, system_prompt=system_prompt, user_prompt=user_prompt, model=model)
         
         if type(plain_result) == str:
             sql = plain_result
@@ -228,6 +228,7 @@ if __name__ == '__main__':
     args_parser = argparse.ArgumentParser()
     args_parser.add_argument('--eval_path', type=str, default='')
     args_parser.add_argument('--mode', type=str, default='dev')
+    args_parser.add_argument('--model', type=str, default='gpt-3.5-turbo')
     args_parser.add_argument('--test_path', type=str, default='')
     args_parser.add_argument('--use_knowledge', type=str, default='False')
     args_parser.add_argument('--db_root_path', type=str, default='')
@@ -238,22 +239,20 @@ if __name__ == '__main__':
     
     eval_data = json.load(open(args.eval_path, 'r'))
     '''for debug'''
-    eval_data = eval_data[:3]
+    eval_data = eval_data[:1]
     '''for debug'''
     
     question_list, db_path_list, knowledge_list = decouple_question_schema(datasets=eval_data, db_root_path=args.db_root_path)
     assert len(question_list) == len(db_path_list) == len(knowledge_list)
     
     if args.use_knowledge == 'True':
-        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=knowledge_list)
+        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=knowledge_list, model=args.model)
     else:
-        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=None)
+        responses = collect_response_from_gpt(db_path_list=db_path_list, question_list=question_list, api_key=args.api_key, knowledge_list=None, model=args.model)
     
     if args.chain_of_thought == 'True':
         output_name = args.data_output_path + 'predict_' + args.mode + '_cot.json'
     else:
         output_name = args.data_output_path + 'predict_' + args.mode + '.json'
-        
-    generate_sql_file(sql_lst=responses, output_path=output_name)
 
-    print('successfully collect results from {} for {} evaluation; Use knowledge: {}; Use COT: {}'.format(args.engine, args.mode, args.use_knowledge, args.chain_of_thought))
+    generate_sql_file(sql_lst=responses, output_path=output_name)

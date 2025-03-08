@@ -1,0 +1,4 @@
+.env
+.DS_Store
+llm/data
+llm/exp_result
