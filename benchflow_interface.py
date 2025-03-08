@@ -64,6 +64,7 @@ class BirdDevBench(BaseBench):
         if len(existing_paths) != 1:
             return BenchmarkResult(task_id=task_id, is_resolved=False, metrics={"score": 0},log={"error": f"no valid log file found, find {len(existing_paths)} log files"}, other={})
         log_content_dir = existing_paths[0]
+        log_content = ""
         with open(log_content_dir, 'r') as f:
             log_content += f.read()
         return BenchmarkResult(task_id=task_id, is_resolved=is_resolved, metrics=metrics, log={"details": log_content}, other={})
